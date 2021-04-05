@@ -11,7 +11,6 @@ from tm import globalTM, localTM, gaussianFilter, bilateralFilter, whiteBalance
 samples = np.load('../ref/p1_pixel_samples.npy')
 etime = np.load('../ref/p1_et_samples.npy')
 golden = np.load('../ref/p1_resp.npy')
-
 print('samples',  samples)
 print('etime', etime)
 #print('golden', golden)
@@ -20,7 +19,6 @@ print('math', (np.log(etime)))
 
 def estimateResponse(img_samples, etime_list, lambda_=50):
     """Estimate camera response for bracketing images
-
     Args:
         img_samples (list of ndarray): list of bracketing images (1ch)
         etime_list (list of float32): list of exposure time
@@ -42,18 +40,11 @@ print(mse)
 ### cr_calibration_end
 
 
-"""
-### global_tone_mapping
-radiance = cv.imread('../TestImg/memorial.hdr', -1)
-golden = cv.imread('../ref/p2_gtm.png')
 
-print('radiance', radiance.shape)
-print('golden', golden.shape)
-"""
+### global_tone_mapping
 
 def globalTM(src, scale=1.0):
     """Global tone mapping (section 1-2)
-
     Args:
         src (ndarray, float32): source radiance image
         scale (float, optional): scaling factor (Defaults to 1.0)
@@ -79,21 +70,34 @@ def globalTM(src, scale=1.0):
     return result
 
 """
+radiance = cv.imread('../TestImg/memorial.hdr', -1)
+golden = cv.imread('../ref/p2_gtm.png')
+print('radiance', radiance)
+print('golden', golden)
 ### problem: how to find out X_max ??
 #ldr = globalTM(radiance, scale=1.0)
 #psnr = cv.PSNR(golden, ldr)
+
 x_max_candi = []
+x_max_list = []
+x_hat_list = []
+count = 0
 result = np.zeros_like(radiance, dtype=np.uint8)
-for width in range(radiance.shape[0]):                  # photo_width
-        for height in range(radiance.shape[1]):         # photo_height
-            for channels in range(radiance.shape[2]):   # photo_channel
-                x_max_candi.append(radiance[width][height][channels])
-        x_max = np.array(max(x_max_candi))
-        print('x_max', x_max.shape)
+for width in range(radiance.shape[0]):                    # photo_width
+        for height in range(radiance.shape[1]):           # photo_height
+            for channels in range(radiance.shape[2]):     # photo_channel
+                for channels in range(radiance.shape[2]): # to find X_max in the 3 channels
+                    x_max_candi.append(radiance[width][height][channels])
+                    count += 1
+                    if count / 3 == 0:
+                        x_max = max(x_max_candi)
+                        count = 0
+                x_max_list = x_max_list.append(x_max)
+                x_hat[width][height][channels] = np.power(2, 1*(np.log2(src[width][height][channels]) - /
+                                                    np.log2(x_max_list[width][height]) ) + np.log2(x_max_list[width][height]))
+            x_hat_list = x_hat_list.append(x_hat)
         #print('rad', np.log2(radiance[width][height]))
-
 #print('x_max', x_max)
-
 #print('result', result.shape[0])
 #print((result+radiance).shape)
 #ssertGreaterEqual(psnr, 45)
@@ -106,7 +110,6 @@ for width in range(radiance.shape[0]):                  # photo_width
 
 def localTM(src, imgFilter, scale=3):
     """Local tone mapping (section 1-3)
-
     Args:
         src (ndarray, float32): source radiance image
         imgFilter (function): filter function with preset parameters
@@ -129,7 +132,6 @@ psnr = cv.PSNR(golden, test)
 
 def gaussianFilter(src, N=35, sigma_s=100):
     """Gaussian filter (section 1-3)
-
     Args:
         src (ndarray): source image
         N (int, optional): window size of the filter (Defaults to 35)
@@ -156,14 +158,14 @@ def gaussianFilter(src, N=35, sigma_s=100):
 
     return result
 
-
+"""
 impulse = np.load('../ref/p3_impulse.npy')
 golden = np.load('../ref/p3_gaussian.npy').astype(float)
 
 N = 5
 pad_a = np.pad(impulse, (N//2, N//2), 'symmetric')
 print(pad_a.shape)
-"""
+
 sigma_s =15
 dtype = np.float32
 gaussian_kernel = np.zeros_like(impulse, dtype=dtype)
@@ -173,11 +175,11 @@ for i in range(pad_a.shape[0]):
         gaussian_kernel[i, j] = np.exp(-(np.power(i - N//2, 2) + np.power(j - N//2, 2) / 2 / np.power(2, sigma_s)))
         print('gaussian', gaussian_kernel[i, j], i, j)
 print('gaussian', gaussian_kernel)
-"""
+
 test = gaussianFilter(impulse, 5, 15).astype(float)
 print('test', test)
 psnr = cv.PSNR(golden, test)
-
+"""
 
 
 
@@ -186,7 +188,6 @@ psnr = cv.PSNR(golden, test)
 
 def bilateralFilter(src, N=35, sigma_s=100, sigma_r=0.8):
     """Bilateral filter (section 1-4)
-
     Args:
         src (ndarray): source image
         N (int, optional): window size of the filter (Defaults to 35)
@@ -201,9 +202,47 @@ def bilateralFilter(src, N=35, sigma_s=100, sigma_r=0.8):
     return result
 
 
-step = np.load('../ref/p4_step.npy')
-golden = np.load('../ref/p4_bilateral.npy').astype(float)
+#step = np.load('../ref/p4_step.npy')
+#golden = np.load('../ref/p4_bilateral.npy').astype(float)
 #print('step', step)
 #print('gold', golden)
 #test = bilateralFilter(step, 9, 50, 10).astype(float)
 #psnr = cv.PSNR(golden, test)
+
+
+########################################
+######## White balance
+# step1. Find the BGR_avg of the zone(to be white)
+# step2. Use the formula to calculate G' = G * (R_avg / G_avg) , G and G' stand for the all img
+
+def whiteBalance(src, y_range, x_range):
+    """White balance based on Known to be White(KTBW) region
+
+    Args:
+        src (ndarray): source image
+        y_range (tuple of 2): location range in y-dimension
+        x_range (tuple of 2): location range in x-dimension
+    """
+    result = np.zeros_like(src)
+    return result
+
+img = np.random.rand(30, 30, 3)
+ktbw = (slice(0, 15), slice(0, 15))
+w_avg = img[0:15, 0:15, 2].mean()
+print(ktbw[0])
+### test section:
+for width in range(img.shape[0]):
+    print(width)
+
+
+
+
+
+
+
+wb_result = whiteBalance(img, (0, 15), (0, 15))     # the x, y range is known to be white 
+result_avg = wb_result[ktbw].mean(axis=(0, 1))
+#assertAlmostEqual(result_avg[0], w_avg)
+#assertAlmostEqual(result_avg[1], w_avg)
+#print('img', img)
+#print('ktbw', ktbw)
