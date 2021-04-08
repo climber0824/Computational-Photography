@@ -60,7 +60,7 @@ def globalTM(src, scale=1.0):
             for channels in range(src.shape[2]):   # photo_channel
                 x_max_candi.append(radiance[width][height][channels])
             x_max = np.array(max(x_max_candi))
-            x_hat[width][height] = np.power(2, 1*(np.log2(src[width][height]) - np.log2(x_max) ) + np.log2(x_max))
+            x_hat[width][height] = np.power(2, scale*(np.log2(src[width][height]) - np.log2(x_max) ) + np.log2(x_max))
             x_hat = x_hat.append(x_hat[width][height])
 
     gamma = 2.2
@@ -69,40 +69,61 @@ def globalTM(src, scale=1.0):
 
     return result
 
-"""
+
 radiance = cv.imread('../TestImg/memorial.hdr', -1)
 golden = cv.imread('../ref/p2_gtm.png')
-print('radiance', radiance)
-print('golden', golden)
+#print('radiance', (radiance[::,:]))
+#print('golden', golden)
 ### problem: how to find out X_max ??
 #ldr = globalTM(radiance, scale=1.0)
 #psnr = cv.PSNR(golden, ldr)
 
+scale = 1.0
 x_max_candi = []
 x_max_list = []
 x_hat_list = []
+x_max = 0
 count = 0
 result = np.zeros_like(radiance, dtype=np.uint8)
-for width in range(radiance.shape[0]):                    # photo_width
-        for height in range(radiance.shape[1]):           # photo_height
-            for channels in range(radiance.shape[2]):     # photo_channel
-                for channels in range(radiance.shape[2]): # to find X_max in the 3 channels
-                    x_max_candi.append(radiance[width][height][channels])
-                    count += 1
-                    if count / 3 == 0:
-                        x_max = max(x_max_candi)
-                        count = 0
-                x_max_list = x_max_list.append(x_max)
-                x_hat[width][height][channels] = np.power(2, 1*(np.log2(src[width][height][channels]) - /
-                                                    np.log2(x_max_list[width][height]) ) + np.log2(x_max_list[width][height]))
-            x_hat_list = x_hat_list.append(x_hat)
-        #print('rad', np.log2(radiance[width][height]))
+#print('size', radiance.shape[0]*radiance.shape[1])
+
+for width in range(radiance.shape[0]):                # photo_width
+    for height in range(radiance.shape[1]):           # photo_height
+        for channels in range(radiance.shape[2]):     # to find X_max in the 3 channels
+            #print('radiance', radiance[width][height][channels])
+            x_max_candi.append(radiance[width][height][channels])
+            #print('x_max_candi', x_max_candi)
+            count += 1
+            #print('count', count // 3)
+            if count // 3 == 1:
+                x_max = max(x_max_candi)
+                #print('x_max', x_max)
+                count = 0
+                x_max_candi = []
+                x_max_list.append(x_max)
+#print('x_max_list', (x_max_list))
+
+
+for width in range(radiance.shape[0]):
+    for height in range(radiance.shape[1]):
+        for channels in range(radiance.shape[2]):
+            print('width', width, 'height', height)
+            print('rad', radiance[width][height][channels])
+            print('x_max_list', x_max_list[0])
+            print('x_max_list', x_max_list[width * height + width])
+            print('np.log2(radiance[width][height][channels]', np.log2(radiance[width][height][channels]))
+            #x_hat_list[width][height][channels] = np.power(2, scale * (np.log2(radiance[width][height][channels]) - np.log2(x_max_list[width * height])) + np.log2(x_max_list[width * height]))  
+            #print('x_hat', x_hat_list[width][height][channels])
+    #    x_hat[width][height][channels] = np.power(2, 1*(np.log2(radiance[width][height][channels]) - \
+    #                                        np.log2(x_max_list[width][height]) ) + np.log2(x_max_list[width][height]))
+        #x_hat_list = x_hat_list.append(x_hat)
+    #print('rad', np.log2(radiance[width][height]))
 #print('x_max', x_max)
 #print('result', result.shape[0])
 #print((result+radiance).shape)
 #ssertGreaterEqual(psnr, 45)
 #print('psnr', psnr)
-"""
+
 
 ##################################
 
@@ -146,7 +167,7 @@ def gaussianFilter(src, N=35, sigma_s=100):
     dtype = np.float32
     result = np.zeros_like(src, dtype=dtype)
     src_padded = np.pad(src, (N//2, N//2), 'symmetric')
-    assert src_padded.shape[0] == 13
+
 
 
     for i in range(src_padded.shape[0]):
@@ -229,10 +250,10 @@ def whiteBalance(src, y_range, x_range):
 img = np.random.rand(30, 30, 3)
 ktbw = (slice(0, 15), slice(0, 15))
 w_avg = img[0:15, 0:15, 2].mean()
-print(ktbw[0])
+#print(ktbw[0])
 ### test section:
-for width in range(img.shape[0]):
-    print(width)
+#for width in range(img.shape[0]):
+#    print(width)
 
 
 
