@@ -69,7 +69,7 @@ def globalTM(src, scale=1.0):
 
     return result
 
-
+"""
 radiance = cv.imread('../TestImg/memorial.hdr', -1)
 golden = cv.imread('../ref/p2_gtm.png')
 #print('radiance', (radiance[::,:]))
@@ -123,7 +123,7 @@ for width in range(radiance.shape[0]):
 #print((result+radiance).shape)
 #ssertGreaterEqual(psnr, 45)
 #print('psnr', psnr)
-
+"""
 
 ##################################
 
@@ -179,29 +179,52 @@ def gaussianFilter(src, N=35, sigma_s=100):
 
     return result
 
-"""
+
 impulse = np.load('../ref/p3_impulse.npy')
 golden = np.load('../ref/p3_gaussian.npy').astype(float)
+print('golden', golden)
 
 N = 5
 pad_a = np.pad(impulse, (N//2, N//2), 'symmetric')
 print(pad_a.shape)
+print(pad_a)
 
 sigma_s =15
 dtype = np.float32
 gaussian_kernel = np.zeros_like(impulse, dtype=dtype)
-for i in range(pad_a.shape[0]):
-    for j in range(pad_a.shape[1]):
+for i in range(N//2 + 1, pad_a.shape[0] - N//2):
+    for j in range(N//2 + 1, pad_a.shape[1] - N//2):
         #print(pad_a[i][j])
-        gaussian_kernel[i, j] = np.exp(-(np.power(i - N//2, 2) + np.power(j - N//2, 2) / 2 / np.power(2, sigma_s)))
-        print('gaussian', gaussian_kernel[i, j], i, j)
+        gaussian_kernel[i-1, j-1] = np.exp(-(np.power(i - N//2, 2) + np.power(j - N//2, 2) / 2 / np.power(2, sigma_s)))
+        print('gaussian', gaussian_kernel[i-1, j-1], i-1, j-1)
 print('gaussian', gaussian_kernel)
 
 test = gaussianFilter(impulse, 5, 15).astype(float)
 print('test', test)
 psnr = cv.PSNR(golden, test)
-"""
 
+##### https://blog.csdn.net/qq_16013649/article/details/78784791
+def gaussian_2d_kernel(kernel_size = 5,sigma = 15):
+    
+    kernel = np.zeros([kernel_size,kernel_size])
+    center = kernel_size//2
+    
+    if sigma == 0:
+        sigma = ((kernel_size-1)*0.5 - 1)*0.3 + 0.8
+    
+    s = 2*(sigma**2)
+    sum_val = 0
+    for i in range(0,kernel_size):
+        for j in range(0,kernel_size):
+            x = i-center
+            y = j-center
+            kernel[i,j] = np.exp(-(x**2+y**2) / s)
+            sum_val += kernel[i,j]
+            #/(np.pi * s)
+    sum_val = 1/sum_val
+    return kernel*sum_val
+
+print(gaussian_2d_kernel)
 
 
 ####################
