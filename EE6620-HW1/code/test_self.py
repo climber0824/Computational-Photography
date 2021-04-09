@@ -4,7 +4,7 @@ from functools import partial
 import cv2 as cv
 from cr_calibration import estimateResponse, constructRadiance, loadExposures
 from tm import globalTM, localTM, gaussianFilter, bilateralFilter, whiteBalance
-
+import math
 
 ### cr_calibration
 """
@@ -179,7 +179,7 @@ def gaussianFilter(src, N=35, sigma_s=100):
 
     return result
 
-
+"""
 impulse = np.load('../ref/p3_impulse.npy')
 golden = np.load('../ref/p3_gaussian.npy').astype(float)
 print('golden', golden)
@@ -188,7 +188,9 @@ N = 5
 pad_a = np.pad(impulse, (N//2, N//2), 'symmetric')
 print(pad_a.shape)
 print(pad_a)
+"""
 
+"""
 sigma_s =15
 dtype = np.float32
 gaussian_kernel = np.zeros_like(impulse, dtype=dtype)
@@ -202,6 +204,7 @@ print('gaussian', gaussian_kernel)
 test = gaussianFilter(impulse, 5, 15).astype(float)
 print('test', test)
 psnr = cv.PSNR(golden, test)
+"""
 
 ##### https://blog.csdn.net/qq_16013649/article/details/78784791
 def gaussian_2d_kernel(kernel_size = 5,sigma = 15):
@@ -224,7 +227,7 @@ def gaussian_2d_kernel(kernel_size = 5,sigma = 15):
     sum_val = 1/sum_val
     return kernel*sum_val
 
-print(gaussian_2d_kernel)
+#print(gaussian_2d_kernel)
 
 
 ####################
@@ -245,14 +248,105 @@ def bilateralFilter(src, N=35, sigma_s=100, sigma_r=0.8):
     result = np.zeros_like(src, dtype=dtype)
     return result
 
-
-#step = np.load('../ref/p4_step.npy')
-#golden = np.load('../ref/p4_bilateral.npy').astype(float)
-#print('step', step)
-#print('gold', golden)
+"""
+step = np.load('../ref/p4_step.npy')
+golden = np.load('../ref/p4_bilateral.npy').astype(float)
+print('step', step)
+print('gold', golden)
 #test = bilateralFilter(step, 9, 50, 10).astype(float)
 #psnr = cv.PSNR(golden, test)
+"""
 
+#####   https://github.com/nuwandda/Bilateral-Filter/blob/master/bilateral_filter.py
+def gaussian(x,sigma):
+    return (-np.abs(-(x**2) / (2*(sigma**2))))
+    #return (1.0/(2*np.pi*(sigma**2)))*np.exp(-(x**2)/(2*(sigma**2)))
+
+def distance(x1,y1,x2,y2):
+    return np.sqrt(np.abs((x1-x2)**2-(y1-y2)**2) )
+
+def bilateral_filter(image, diameter, sigma_s, sigma_r):
+    new_image = np.zeros(image.shape)
+
+    for row in range(len(image)):
+        for col in range(len(image[0])):
+            wp_total = 0
+            filtered_image = 0
+            for k in range(diameter):
+                for l in range(diameter):
+                    n_x = row - (diameter/2 - k)
+                    n_y = col - (diameter/2 - l)
+                    if n_x >= len(image):
+                        n_x -= len(image)
+                    if n_y >= len(image[0]):
+                        n_y -= len(image[0])
+                    gs = gaussian(image[int(n_x)][int(n_y)] - image[row][col], sigma_s)
+                    gr = gaussian(distance(n_x, n_y, row, col), sigma_r)
+                    #wp = gs * gr
+                    wp = np.exp(-gs - gr)
+                    filtered_image = (filtered_image) + (image[int(n_x)][int(n_y)] * wp)
+                    wp_total = wp_total + wp
+            filtered_image = filtered_image // wp_total
+            new_image[row][col] = filtered_image
+    return new_image
+
+"""
+test = bilateral_filter(step, 9, 50, 10).astype(float)
+print('test', test)
+psnr = cv.PSNR(golden, test)
+print('psnr', psnr)
+"""
+##### ends
+
+
+####### https://github.com/DuJunda/BilateralFilter/blob/master/BilateralFilter.py
+
+def bilateral_filter_image(image_matrix, window_length=9,sigma_color=50,sigma_space=10,mask_image_matrix = None):
+    mask_image_matrix = np.zeros(
+        (image_matrix.shape[0], image_matrix.shape[1])) if mask_image_matrix is None else mask_image_matrix#default: filtering the entire image
+    image_matrix = image_matrix.astype(np.int32)#transfer the image_matrix to type int32，for uint cann't represent the negative number afterward
+    
+    def limit(x):
+        x = 0 if x < 0 else x
+        x = 255 if x > 255 else x
+        return x
+    limit_ufun = np.vectorize(limit, otypes=[np.uint8])
+    def look_for_gaussion_table(delta):
+        return delta_gaussion_dict[delta]
+    def generate_bilateral_filter_distance_matrix(window_length,sigma):
+        distance_matrix = np.zeros((window_length,window_length,3))
+        left_bias = int(math.floor(-(window_length - 1) / 2))
+        right_bias = int(math.floor((window_length - 1) / 2))
+        for i in range(left_bias,right_bias+1):
+            for j in range(left_bias,right_bias+1):
+                distance_matrix[i-left_bias][j-left_bias] = math.exp(-(i**2+j**2)/(2*(sigma**2)))
+        return distance_matrix
+    delta_gaussion_dict = {i: math.exp(-i ** 2 / (2 *(sigma_color**2))) for i in range(256)}
+    look_for_gaussion_table_ufun = np.vectorize(look_for_gaussion_table, otypes=[np.float64])#to accelerate the process of get the gaussion matrix about color.key:color difference，value:gaussion weight
+    bilateral_filter_distance_matrix = generate_bilateral_filter_distance_matrix(window_length,sigma_space)#get the gaussion weight about distance directly
+
+    margin = int(window_length / 2)
+    left_bias = math.floor(-(window_length - 1) / 2)
+    right_bias = math.floor((window_length - 1) / 2)
+    filter_image_matrix = image_matrix.astype(np.float64)
+
+    for i in range(0 + margin, image_matrix.shape[0] - margin):
+        for j in range(0 + margin, image_matrix.shape[1] - margin):
+            if mask_image_matrix[i][j]==0:
+                filter_input = image_matrix[i + left_bias:i + right_bias + 1,
+                               j + left_bias:j + right_bias + 1]#get the input window
+                bilateral_filter_value_matrix = look_for_gaussion_table_ufun(np.abs(filter_input-image_matrix[i][j]))#get the gaussion weight about color
+                bilateral_filter_matrix = np.multiply(bilateral_filter_value_matrix, bilateral_filter_distance_matrix)#multiply color gaussion weight  by distane gaussion weight to get the no-norm weigth matrix
+                bilateral_filter_matrix = bilateral_filter_matrix/np.sum(bilateral_filter_matrix,keepdims=False,axis=(0,1))#normalize the weigth matrix
+                filter_output = np.sum(np.multiply(bilateral_filter_matrix,filter_input),axis=(0,1)) #multiply the input window by the weigth matrix，then get the sum of channels seperately
+                filter_image_matrix[i][j] = filter_output
+    filter_image_matrix = limit_ufun(filter_image_matrix)#limit the range
+    return filter_image_matrix
+
+
+step = np.load('../ref/p4_step.npy')
+golden = np.load('../ref/p4_bilateral.npy').astype(float)
+bilateral_filtered = bilateral_filter_image(step)
 
 ########################################
 ######## White balance
