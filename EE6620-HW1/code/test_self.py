@@ -50,80 +50,41 @@ def globalTM(src, scale=1.0):
         scale (float, optional): scaling factor (Defaults to 1.0)
     """
     result = np.zeros_like(src, dtype=np.uint8)
-
-    x_max = []
-    x_hat = []
-    x_max_candi = []
-
-    for width in range(src.shape[0]):              # photo_width
-        for height in range(src.shape[1]):         # photo_height
-            for channels in range(src.shape[2]):   # photo_channel
-                x_max_candi.append(radiance[width][height][channels])
-            x_max = np.array(max(x_max_candi))
-            x_hat[width][height] = np.power(2, scale*(np.log2(src[width][height]) - np.log2(x_max) ) + np.log2(x_max))
-            x_hat = x_hat.append(x_hat[width][height])
-
     gamma = 2.2
-    result = result + x_hat
-    result = result ^ (1 / gamma)
+    
+    for width in range(src.shape[0]):
+        for height in range(src.shape[1]):
+            for channel in range(src.shape[2]):
+                if radiance[width][height][channel] >= 1:
+                    radiance[width][height][channel] = 1
+            result[width][height][channel]=255 * ( 2 ** (scale*(np.log2(radiance[width][height][channel])-\
+                     np.log2(x_max[width][height]) + np.log2(x_max[width][height]))))** (1/gamma)
 
     return result
 
-"""
+
 radiance = cv.imread('../TestImg/memorial.hdr', -1)
 golden = cv.imread('../ref/p2_gtm.png')
-#print('radiance', (radiance[::,:]))
-#print('golden', golden)
-### problem: how to find out X_max ??
-#ldr = globalTM(radiance, scale=1.0)
-#psnr = cv.PSNR(golden, ldr)
+x_max = np.max(radiance, axis = 2)
 
 scale = 1.0
-x_max_candi = []
-x_max_list = []
-x_hat_list = []
-x_max = 0
+
+x_hat = np.zeros_like(radiance, dtype=np.uint8)
 count = 0
 result = np.zeros_like(radiance, dtype=np.uint8)
-#print('size', radiance.shape[0]*radiance.shape[1])
-
-for width in range(radiance.shape[0]):                # photo_width
-    for height in range(radiance.shape[1]):           # photo_height
-        for channels in range(radiance.shape[2]):     # to find X_max in the 3 channels
-            #print('radiance', radiance[width][height][channels])
-            x_max_candi.append(radiance[width][height][channels])
-            #print('x_max_candi', x_max_candi)
-            count += 1
-            #print('count', count // 3)
-            if count // 3 == 1:
-                x_max = max(x_max_candi)
-                #print('x_max', x_max)
-                count = 0
-                x_max_candi = []
-                x_max_list.append(x_max)
-#print('x_max_list', (x_max_list))
 
 
 for width in range(radiance.shape[0]):
     for height in range(radiance.shape[1]):
-        for channels in range(radiance.shape[2]):
-            print('width', width, 'height', height)
-            print('rad', radiance[width][height][channels])
-            print('x_max_list', x_max_list[0])
-            print('x_max_list', x_max_list[width * height + width])
-            print('np.log2(radiance[width][height][channels]', np.log2(radiance[width][height][channels]))
-            #x_hat_list[width][height][channels] = np.power(2, scale * (np.log2(radiance[width][height][channels]) - np.log2(x_max_list[width * height])) + np.log2(x_max_list[width * height]))  
-            #print('x_hat', x_hat_list[width][height][channels])
-    #    x_hat[width][height][channels] = np.power(2, 1*(np.log2(radiance[width][height][channels]) - \
-    #                                        np.log2(x_max_list[width][height]) ) + np.log2(x_max_list[width][height]))
-        #x_hat_list = x_hat_list.append(x_hat)
-    #print('rad', np.log2(radiance[width][height]))
-#print('x_max', x_max)
-#print('result', result.shape[0])
-#print((result+radiance).shape)
-#ssertGreaterEqual(psnr, 45)
-#print('psnr', psnr)
-"""
+        for channel in range(radiance.shape[2]):
+            if radiance[width][height][channel] >= 1:
+                radiance[width][height][channel] = 1
+            x_hat[width][height][channel]=255 * ( 2 ** (scale*(np.log2(radiance[width][height][channel])-\
+                     np.log2(x_max[width][height]) + np.log2(x_max[width][height]))))** (1/2.2)
+#rint('x_hat', x_hat)            
+psnr = cv.PSNR(golden, x_hat)
+print('psnr', psnr)
+
 
 ##################################
 
@@ -183,7 +144,6 @@ def gaussianFilter(src, N=35, sigma_s=100):
 impulse = np.load('../ref/p3_impulse.npy')
 golden = np.load('../ref/p3_gaussian.npy').astype(float)
 print('golden', golden)
-
 N = 5
 pad_a = np.pad(impulse, (N//2, N//2), 'symmetric')
 print(pad_a.shape)
@@ -200,7 +160,6 @@ for i in range(N//2 + 1, pad_a.shape[0] - N//2):
         gaussian_kernel[i-1, j-1] = np.exp(-(np.power(i - N//2, 2) + np.power(j - N//2, 2) / 2 / np.power(2, sigma_s)))
         print('gaussian', gaussian_kernel[i-1, j-1], i-1, j-1)
 print('gaussian', gaussian_kernel)
-
 test = gaussianFilter(impulse, 5, 15).astype(float)
 print('test', test)
 psnr = cv.PSNR(golden, test)
@@ -300,7 +259,7 @@ print('psnr', psnr)
 
 
 ####### https://github.com/DuJunda/BilateralFilter/blob/master/BilateralFilter.py
-
+"""
 def bilateral_filter_image(image_matrix, window_length=9,sigma_color=50,sigma_space=10,mask_image_matrix = None):
     mask_image_matrix = np.zeros(
         (image_matrix.shape[0], image_matrix.shape[1])) if mask_image_matrix is None else mask_image_matrix#default: filtering the entire image
@@ -347,7 +306,7 @@ def bilateral_filter_image(image_matrix, window_length=9,sigma_color=50,sigma_sp
 step = np.load('../ref/p4_step.npy')
 golden = np.load('../ref/p4_bilateral.npy').astype(float)
 bilateral_filtered = bilateral_filter_image(step)
-
+"""
 ########################################
 ######## White balance
 # step1. Find the BGR_avg of the zone(to be white)
@@ -355,7 +314,6 @@ bilateral_filtered = bilateral_filter_image(step)
 
 def whiteBalance(src, y_range, x_range):
     """White balance based on Known to be White(KTBW) region
-
     Args:
         src (ndarray): source image
         y_range (tuple of 2): location range in y-dimension
@@ -364,6 +322,7 @@ def whiteBalance(src, y_range, x_range):
     result = np.zeros_like(src)
     return result
 
+"""
 img = np.random.rand(30, 30, 3)
 ktbw = (slice(0, 15), slice(0, 15))
 w_avg = img[0:15, 0:15, 2].mean()
@@ -384,3 +343,4 @@ result_avg = wb_result[ktbw].mean(axis=(0, 1))
 #assertAlmostEqual(result_avg[1], w_avg)
 #print('img', img)
 #print('ktbw', ktbw)
+"""
