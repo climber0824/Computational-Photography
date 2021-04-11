@@ -51,6 +51,7 @@ def globalTM(src, scale=1.0):
     """
     result = np.zeros_like(src, dtype=np.uint8)
     gamma = 2.2
+    x_max = np.max(radiance, axis = 2)
     
     for width in range(src.shape[0]):
         for height in range(src.shape[1]):
