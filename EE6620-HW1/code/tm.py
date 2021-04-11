@@ -13,14 +13,15 @@ def globalTM(src, scale=1.0):
     """
     result = np.zeros_like(src, dtype=np.uint8)
     gamma = 2.2
+    x_max = np.max(radiance, axis = 2)
     
     for width in range(src.shape[0]):
         for height in range(src.shape[1]):
             for channel in range(src.shape[2]):
                 if radiance[width][height][channel] >= 1:
                     radiance[width][height][channel] = 1
-            result[width][height][channel]=255 * ( 2 ** (scale*(np.log2(radiance[width][height][channel])-\
-                     np.log2(x_max[width][height]) + np.log2(x_max[width][height]))))**(1/gamma)
+            result[width][height][channel] = 255 * ( 2 ** (scale*(np.log2(radiance[width][height][channel])-\
+                     np.log2(x_max[width][height]) + np.log2(x_max[width][height])))) ** (1/gamma)
     return result
 
 
