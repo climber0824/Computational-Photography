@@ -63,7 +63,7 @@ def whiteBalance(src, y_range, x_range):
     return result
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     ### for globalTM
     radiance = cv.imread('../TestImg/memorial.hdr', -1)
     golden = cv.imread('../ref/p2_gtm.png')    
