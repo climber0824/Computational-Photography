@@ -145,6 +145,33 @@ def whiteBalance(src, y_range, x_range):
         x_range (tuple of 2): location range in x-dimension
     """
     result = np.zeros_like(src)
+    
+    B_channel = src[:,:,0]
+    G_channel = src[:,:,1] 
+    R_channel = src[:,:,2]
+    print(x_range[0],x_range[1], y_range[0],y_range[1])
+    print(src.shape[2])
+    B_ktbw = B_channel[y_range[0]:y_range[1], x_range[0]:x_range[1]]
+    G_ktbw = G_channel[y_range[0]:y_range[1], x_range[0]:x_range[1]]
+    R_ktbw = R_channel[y_range[0]:y_range[1], x_range[0]:x_range[1]]
+    
+    print(B_ktbw)
+    B_avg = np.mean(B_ktbw)
+    G_avg = np.mean(G_ktbw)
+    R_avg = np.mean(R_ktbw)
+    
+    print(R_avg / B_avg)
+    print(R_avg / G_avg)
+    
+    for width in range(src.shape[0]):
+        for height in range(src.shape[1]):
+            for channel in range(src.shape[2]): 
+                if channel == 0:
+                    result[width][height][channel] = src[width][height][channel] * (R_avg / B_avg)
+                if channel == 1:
+                    result[width][height][channel] = src[width][height][channel] * (R_avg / G_avg)
+                if channel == 2:
+                    result[width][height][channel] = src[width][height][channel]
     return result
 
 
