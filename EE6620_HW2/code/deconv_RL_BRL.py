@@ -89,8 +89,29 @@ def BRL_energy(img_in, k_in, I_in, lamb_da, sigma_r, rk, to_linear):
 
 if __name__ == '__main__':
     rl_source = cv.imread('../data/blurred_image/curiosity_small.png')
+    golden = cv.imread('../ref_ans/curiosity_small/rl_deblur25.png')
+    I = rl_source / 255
     rl_ker = cv.imread('../data/kernel/kernel_small.png')
-    #print(rl_source.shape)
-    #print(rl_ker)
-    #print(rl_source / 255)
-    print('ker_normal', rl_ker / np.sum(rl_ker))
+    rl_ker_nor = rl_ker / np.sum(rl_ker)
+    rl_ker_nor_star = np.flipud(rl_ker_nor)
+    denominator = np.zeros_like(rl_source, dtype = np.float32)
+    ratio = np.zeros_like(rl_source, dtype = np.float32)
+    ratio_2 = np.zeros_like(rl_source, dtype = np.float32)
+    I_iter = I.copy()
+    half_window_size = (rl_ker.shape[0] - 1) // 2
+    rl_source_pad = np.pad(rl_source, half_window_size, 'symmetric')
+    max_iter = 25
+    
+    start_time = time.time()
+    for j in range(max_iter):
+        for i in range(rl_source.shape[2]):
+            denominator[:,:,i] = convolution2d(rl_source_pad[:,:,i], rl_ker_nor[:,:,i], 0)
+            ratio[:,:,i] = rl_source[:,:,i] / denominator[:,:,i]
+            ratio_pad = np.pad(ratio, half_window_size, 'symmetric')
+            ratio_2[:,:,i] = convolution2d(ratio_pad[:,:,i], rl_ker_nor[:,:,i], 0)
+            I_iter[:,:,i] = I_iter[:,:,i] * ratio_2[:,:,i]
+        print('iter:', j, 'psnr', PSNR_UCHAR3(I_iter * 255, golden))
+        
+    lr_photo = 255 * I_iter
+    print('time:', (time.time() - start_time) / 60)
+    cv.imwrite('lr.png', lr_photo)
