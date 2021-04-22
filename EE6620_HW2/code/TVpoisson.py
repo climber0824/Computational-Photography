@@ -50,16 +50,19 @@ tstart = time.time()
 #%% rgb channels
 x = Variable(b.shape)
 
-data_term = poisson_norm( conv(K, x) - b )
+
+data_term = poisson_norm( conv(K, x) - b, b)
 grad_sparsity = lamb * norm1( grad(x) )
 objective = data_term + grad_sparsity +nonneg(x)
 p = Problem( objective )
 
+
 # model the problem by proximal
-prob = Problem(poisson_norm(conv(K,x, dims=2) - b, b) + lamb * group_norm1( grad(x, dims = 2), [3] ) + nonneg(x)) # formulate problem
+#prob = Problem(poisson_norm(conv(K,x, dims=2) - b, K) + lamb * group_norm1( grad(x, dims = 2), [3] ) + nonneg(x)) # formulate problem
 
 # solve the problem
-result = prob.solve(verbose=True,solver=test_solver,x0=b,eps_abs=eps_abs_rel, eps_rel=eps_abs_rel,max_iters=max_iters) # solve problem
+#result = prob.solve(verbose=True,solver=test_solver,x0=b,eps_abs=eps_abs_rel, eps_rel=eps_abs_rel,max_iters=max_iters) # solve problem
+result = p.solve(verbose=True,solver=test_solver,x0=b,eps_abs=eps_abs_rel, eps_rel=eps_abs_rel,max_iters=max_iters) # solve problem
 x = x.value
 
 # record time
