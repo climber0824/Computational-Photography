@@ -3,6 +3,9 @@ RL and BRL functions
 """
 import numpy as np
 import cv2 as cv
+import time
+
+from load_psnr import PSNR_UCHAR3
 
 def RL(img_in, k_in, max_iter, to_linear):
     """ RL deconvolution
@@ -86,6 +89,18 @@ def BRL_energy(img_in, k_in, I_in, lamb_da, sigma_r, rk, to_linear):
     
     return energy
 
+def convolution2d(image, kernel, bias):
+    m, n = kernel.shape
+    if (m == n):
+        y, x = image.shape
+        y = y - m + 1
+        x = x - m + 1
+        new_image = np.zeros((y,x))
+        for i in range(y):
+            for j in range(x):
+                new_image[i][j] = np.sum(image[i:i+m, j:j+m]*kernel) + bias
+    return new_image
+
 
 if __name__ == '__main__':
     rl_source = cv.imread('../data/blurred_image/curiosity_small.png')
@@ -93,7 +108,7 @@ if __name__ == '__main__':
     I = rl_source / 255
     rl_ker = cv.imread('../data/kernel/kernel_small.png')
     rl_ker_nor = rl_ker / np.sum(rl_ker)
-    rl_ker_nor_star = np.flipud(rl_ker_nor)
+    rl_ker_nor_star = rl_ker_nor.copy()
     denominator = np.zeros_like(rl_source, dtype = np.float32)
     ratio = np.zeros_like(rl_source, dtype = np.float32)
     ratio_2 = np.zeros_like(rl_source, dtype = np.float32)
@@ -101,6 +116,22 @@ if __name__ == '__main__':
     half_window_size = (rl_ker.shape[0] - 1) // 2
     rl_source_pad = np.pad(rl_source, half_window_size, 'symmetric')
     max_iter = 25
+    N = rl_ker.shape[0]
+
+    ### k* sol_1:
+    for i in range(-int((N-1)/2), int((N-1)/2)):
+        for j in range(-int((N-1)/2), int((N-1)/2)):
+            rl_ker_nor_star[i][j] = rl_ker_nor[-i][-j]
+    
+    print(rl_ker_nor_star)
+
+
+    ### k* sol_2:
+    k_star = np.flip(rl_ker_nor_star, axis=0)
+    k_star = np.flip(k_star, axis=1)
+    print('************************\n', k_star)
+
+
     
     start_time = time.time()
     for j in range(max_iter):
@@ -108,10 +139,12 @@ if __name__ == '__main__':
             denominator[:,:,i] = convolution2d(rl_source_pad[:,:,i], rl_ker_nor[:,:,i], 0)
             ratio[:,:,i] = rl_source[:,:,i] / denominator[:,:,i]
             ratio_pad = np.pad(ratio, half_window_size, 'symmetric')
-            ratio_2[:,:,i] = convolution2d(ratio_pad[:,:,i], rl_ker_nor[:,:,i], 0)
+            ratio_2[:,:,i] = convolution2d(ratio_pad[:,:,i], rl_ker_nor_star[:,:,i], 0)
             I_iter[:,:,i] = I_iter[:,:,i] * ratio_2[:,:,i]
         print('iter:', j, 'psnr', PSNR_UCHAR3(I_iter * 255, golden))
+        print('time:', (time.time() - start_time) / 60)
         
     lr_photo = 255 * I_iter
     print('time:', (time.time() - start_time) / 60)
     cv.imwrite('lr.png', lr_photo)
+    
