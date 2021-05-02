@@ -24,14 +24,63 @@ def RL(img_in, k_in, max_iter, to_linear):
     ### use symmetric padding
     ### B is blurred img
 
-    RL_result = np.zeros_like(img_in, dtype = np.float32)
-    I = img_in / 255
-    I_iter = np.zeros_like(I, dtype = np.float32)
-    k_normalized = k_in / np.sum(k_in)
-    for i in range(max_iter):
-        ratio = B / np.convolve(np.convolve(I, k_normalized))
-        I = I * k_normalized_star 
-        I_iter += I
+     # Get the shape of img_in
+    rows, cols, ch = img_in.shape
+
+    # Convert the type to float and normalize it
+    img_in = img_in.astype(np.float)
+    img_in /= 255
+    k_in = k_in.astype(np.float)
+    k_in = k_in / np.sum(k_in)
+
+    # Convert img_in to linear domain if to_linear == 'True'
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = img_in[:,:,0] ** gamma
+        G = img_in[:,:,1] ** gamma
+        B = img_in[:,:,2] ** gamma
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        img_in[:,:,0] = R
+        img_in[:,:,1] = G
+        img_in[:,:,2] = B
+
+    # Calculate k_in_star
+    k_in_star = k_in[::-1, ::-1]
+
+    # Deblur the image
+    RL_result = img_in.copy()
+    tmp = np.zeros_like(RL_result, dtype = np.float32)
+    for k in range(ch):
+        for _ in range(max_iter):
+            # $\text{tmp} = \frac{B}{I^t \otimes K}$
+            #tmp = img_in[:,:,k] / (scipy.signal.convolve2d(RL_result[:,:,k], k_in, boundary='symm', mode='same') + 0.0001)
+            tmp[:,:,k] = img_in[:,:,k] / (scipy.signal.convolve2d(RL_result[:,:,k], k_in[:,:,k], boundary='symm', mode='same') + 0.0001)
+            # $I^{t+1} = I^t [K^* \otimes \text{tmp}]$
+            print(tmp.shape)
+            #RL_result[:,:,k] = RL_result[:,:,k] * scipy.signal.convolve2d(tmp[:,:,k], k_in_star[:,:,k], boundary='symm', mode='same')
+            RL_result[:,:,k] = RL_result[:,:,k] * scipy.signal.convolve2d(tmp[:,:,k], k_in_star[:,:,k], boundary='symm', mode='same')
+            print('iter:', _ , 'PSNR', PSNR_UCHAR3(golden, RL_result))
+    # Convert img_in back to nonlinear domain if to_linear == 'True'
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = RL_result[:,:,0] ** (1/gamma)
+        G = RL_result[:,:,1] ** (1/gamma)
+        B = RL_result[:,:,2] ** (1/gamma)
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        RL_result[:,:,0] = R
+        RL_result[:,:,1] = G
+        RL_result[:,:,2] = B
+
+    # Convert RL_result back to int
+    # RL_result[RL_result > 1] = 1
+    # RL_result[RL_result < 0] = 0
+    RL_result = np.round(RL_result * 255).astype('uint8')
 
     return RL_result
 
