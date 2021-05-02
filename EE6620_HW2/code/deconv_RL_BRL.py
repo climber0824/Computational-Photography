@@ -179,48 +179,16 @@ def BRL_energy(img_in, k_in, I_in, lamb_da, sigma_r, rk, to_linear):
     return energy
 
 if __name__ == '__main__':
-    rl_source = cv.imread('../data/blurred_image/curiosity_small.png')
+    rl_small = cv.imread('../data/blurred_image/curiosity_small.png')
+    rl_medium = cv.imread('../data/blurred_image/curiosity_medium.png')
     golden = cv.imread('../ref_ans/curiosity_small/rl_deblur25.png')
-    I = rl_source / 255
-    rl_ker = cv.imread('../data/kernel/kernel_small.png')
-    rl_ker_nor = rl_ker / np.sum(rl_ker)
-    rl_ker_nor_star = rl_ker_nor.copy()
-    denominator = np.zeros_like(rl_source, dtype = np.float32)
-    ratio = np.zeros_like(rl_source, dtype = np.float32)
-    ratio_2 = np.zeros_like(rl_source, dtype = np.float32)
-    I_iter = I.copy()
-    half_window_size = (rl_ker.shape[0] - 1) // 2
-    rl_source_pad = np.pad(rl_source, half_window_size, 'symmetric')
-    max_iter = 25
-    N = rl_ker.shape[0]
-
-    ### k* sol_1:
-    for i in range(-int((N-1)/2), int((N-1)/2)):
-        for j in range(-int((N-1)/2), int((N-1)/2)):
-            rl_ker_nor_star[i][j] = rl_ker_nor[-i][-j]
+    rl_ker_small = cv.imread('../data/kernel/kernel_small.png')
+    rl_ker_medium = cv.imread('../data/kernel/kernel_medium.png')
+    rl_small_result = cv.imread('../result/RL_small.png')
+    rl_medium_result = cv.imread('../result/RL_medium.png')
     
-    print(rl_ker_nor_star)
-
-
-    ### k* sol_2:
-    k_star = np.flip(rl_ker_nor_star, axis=0)
-    k_star = np.flip(k_star, axis=1)
-    print('************************\n', k_star)
-
-
-    
-    start_time = time.time()
-    for j in range(max_iter):
-        for i in range(rl_source.shape[2]):
-            denominator[:,:,i] = convolution2d(rl_source_pad[:,:,i], rl_ker_nor[:,:,i], 0)
-            ratio[:,:,i] = rl_source[:,:,i] / denominator[:,:,i]
-            ratio_pad = np.pad(ratio, half_window_size, 'symmetric')
-            ratio_2[:,:,i] = convolution2d(ratio_pad[:,:,i], rl_ker_nor_star[:,:,i], 0)
-            I_iter[:,:,i] = I_iter[:,:,i] * ratio_2[:,:,i]
-        print('iter:', j, 'psnr', PSNR_UCHAR3(I_iter * 255, golden))
-        print('time:', (time.time() - start_time) / 60)
-        
-    lr_photo = 255 * I_iter
-    print('time:', (time.time() - start_time) / 60)
-    cv.imwrite('lr.png', lr_photo)
-    
+    """
+    rl_result = RL(rl_medium, rl_ker, 55, False)
+    cv.imwrite('../result/RL_medium.png', rl_result)
+    """
+    print(RL_energy(rl_small, rl_ker_small, rl_small_result, False))
