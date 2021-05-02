@@ -178,19 +178,6 @@ def BRL_energy(img_in, k_in, I_in, lamb_da, sigma_r, rk, to_linear):
     
     return energy
 
-def convolution2d(image, kernel, bias):
-    m, n = kernel.shape
-    if (m == n):
-        y, x = image.shape
-        y = y - m + 1
-        x = x - m + 1
-        new_image = np.zeros((y,x))
-        for i in range(y):
-            for j in range(x):
-                new_image[i][j] = np.sum(image[i:i+m, j:j+m]*kernel) + bias
-    return new_image
-
-
 if __name__ == '__main__':
     rl_source = cv.imread('../data/blurred_image/curiosity_small.png')
     golden = cv.imread('../ref_ans/curiosity_small/rl_deblur25.png')
