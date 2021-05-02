@@ -115,7 +115,47 @@ def RL_energy(img_in, k_in, I_in, to_linear):
             Todo:
                 RL energy
     """
-
+    k_in = k_in.astype(np.float)
+    k_in = k_in / np.sum(k_in)
+    I_in = I_in.astype(np.float)
+    I_in  /= 255.0
+    img_in = img_in.astype(np.float)
+    img_in /= 255.0
+    conv = np.zeros_like(img_in, dtype=np.float32)
+    energy = np.zeros_like(img_in, dtype=np.float32)
+    
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = img_in[:,:,0] ** gamma
+        G = img_in[:,:,1] ** gamma
+        B = img_in[:,:,2] ** gamma
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        img_in[:,:,0] = R
+        img_in[:,:,1] = G
+        img_in[:,:,2] = B
+    
+    for k in range(img_in.shape[2]):
+        conv[:,:,k] = scipy.signal.convolve2d(I_in[:,:,k], k_in[:,:,k], boundary='symm', mode='same')
+        energy[:,:,k] = conv[:,:,k] - img_in[:,:,k] * np.log(conv[:,:,k])
+    
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = energy[:,:,0] ** (1/gamma)
+        G = energy[:,:,1] ** (1/gamma)
+        B = energy[:,:,2] ** (1/gamma)
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        energy[:,:,0] = R
+        energy[:,:,1] = G
+        energy[:,:,2] = B
+    
+    energy /= 255.0
+    energy = np.sum(energy)
     
     return energy
 
