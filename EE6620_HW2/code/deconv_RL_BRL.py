@@ -99,6 +99,76 @@ def BRL(img_in, k_in, max_iter, lamb_da, sigma_r, rk, to_linear):
             Todo:
                 BRL deconvolution
     """
+    # Get the shape of img_in
+    rows, cols, ch = img_in.shape
+
+    # Convert the type to float and normalize it
+    img_in = img_in.astype(np.float)
+    img_in /= 255
+    k_in = k_in.astype(np.float)
+    k_in = k_in / np.sum(k_in)
+
+    # Convert img_in to linear domain if to_linear == 'True'
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = img_in[:,:,0] ** gamma
+        G = img_in[:,:,1] ** gamma
+        B = img_in[:,:,2] ** gamma
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        img_in[:,:,0] = R
+        img_in[:,:,1] = G
+        img_in[:,:,2] = B
+
+    # Calculate k_in_star, r_omega, sigma_s
+    k_in_star = k_in[::-1, ::-1]
+    r_omega = rk // 2
+    sigma_s = (r_omega / 3)**2
+
+    # Precompute f(|x-y|)
+    ax = np.linspace(-r_omega, r_omega, r_omega*2+1)
+    xx, yy = np.meshgrid(ax, ax)
+    Gaussian = np.exp(-(np.square(xx) + np.square(yy)) / sigma_s / 2)
+
+    # Deblur the image
+    BRL_result = img_in.copy()
+    gradient_B = np.zeros((rows, cols))
+    tmp = np.zeros((rows, cols, ch))
+    for k in range(ch):
+        for _ in range(max_iter):
+            img_in_pad = np.pad(BRL_result[:,:,k], r_omega, mode="symmetric")
+            # $\nabla E_B(I^t) = 2 * \sum_{y \in \Omega} I^d_y(x)$
+            # $I^d_y(x) = \exp(\frac{-(x - y)^2}{2\sigma_s})* \exp(\frac{-(I(x) - I(y))^2}{2\sigma_r}) * \frac{I(x) - I(y)}{\sigma_r}$
+            for i in range(rows):
+                for j in range(cols):
+                    I_diff = BRL_result[i,j,k] - img_in_pad[i:i+2*r_omega+1, j:j+2*r_omega+1]
+                    gradient_B[i, j] = 2 * np.sum(Gaussian * np.exp(-np.square(I_diff) / 2 / sigma_r) * I_diff / sigma_r)
+            # $\text{tmp} = \frac{B}{I^t \otimes K}$
+            tmp[:,:,k] = img_in[:,:,k] / (scipy.signal.convolve2d(BRL_result[:,:,k], k_in[:,:,k], boundary='symm', mode='same') + 0.0001)
+            # $I^{t+1}= \frac{I^t}{1+\lambda * \nabla E_B(I^t)} [K^* \otimes \text{tmp}]$
+            BRL_result[:,:,k] = BRL_result[:,:,k] * scipy.signal.convolve2d(tmp[:,:,k], k_in_star[:,:,k], boundary='symm', mode='same') / (1 + lamb_da * gradient_B)
+            print('iter:', _)
+
+    # Convert img_in back to nonlinear domain if to_linear == 'True'
+    if to_linear == 'True':
+        gamma = 2.2
+        DBL_MIN = sys.float_info.min
+        R = BRL_result[:,:,0] ** (1/gamma)
+        G = BRL_result[:,:,1] ** (1/gamma)
+        B = BRL_result[:,:,2] ** (1/gamma)
+        R[R < DBL_MIN] = DBL_MIN
+        G[G < DBL_MIN] = DBL_MIN
+        B[B < DBL_MIN] = DBL_MIN
+        BRL_result[:,:,0] = R
+        BRL_result[:,:,1] = G
+        BRL_result[:,:,2] = B
+
+    # Convert BRL_result back to int
+    BRL_result[BRL_result > 1] = 1
+    BRL_result[BRL_result < 0] = 0
+    BRL_result = np.round(BRL_result * 255).astype('uint8')
 
     return BRL_result
 
