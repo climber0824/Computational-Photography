@@ -23,13 +23,12 @@ def get_kernel(gau_N=13, gau_std=1.2, mv_x=0, mv_y=0):
         kernel:  gaussian kernel with the shape (N, N)
     '''
     # ===== write your kernel here ===== #
-
-
-
-
-
-
-
+    upsample_factor = 4
+    ax = np.linspace(-(gaussian_N - 1) / 2., (gaussian_N - 1) / 2., gaussian_N)
+    xx, yy = np.meshgrid(ax, ax)
+    gau_kernel = np.exp(-0.5 * (np.square(xx + (1.5 - mv_x * upsample_factor)) + np.square(yy + (1.5 - mv_y * upsample_factor))) / np.square(gaussian_std))
+    kernel = gau_kernel / np.sum(gau_kernel)
+    
     return kernel
 
 def solve(imgs, filters, lamb):
