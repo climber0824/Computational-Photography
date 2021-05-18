@@ -49,11 +49,15 @@ def solve(imgs, filters, lamb):
     x = Variable(img4x_size)
     # ===== formulate the problem here, you can refer to sr_single.py ===== #
     
-
-
-
-    
-    prob = Problem(...) 
+    prob = Problem(norm1(subsample(conv(filters[0], x, dims=2),(4,4,1)) - imgs[0] ) \
+                   + norm1(subsample(conv(filters[1], x, dims=2),(4,4,1)) - imgs[1] ) \
+                   + norm1(subsample(conv(filters[2], x, dims=2),(4,4,1)) - imgs[2] ) \
+                   + norm1(subsample(conv(filters[3], x, dims=2),(4,4,1)) - imgs[3] ) \
+                   + norm1(subsample(conv(filters[4], x, dims=2),(4,4,1)) - imgs[4] ) \
+                   + norm1(subsample(conv(filters[5], x, dims=2),(4,4,1)) - imgs[5] ) \
+                   + norm1(subsample(conv(filters[6], x, dims=2),(4,4,1)) - imgs[6] ) \
+                   + norm1(subsample(conv(filters[7], x, dims=2),(4,4,1)) - imgs[7] ) \
+                   + lamb * group_norm1( grad(x, dims = 2), [3] ))
     
     # solve problem
     result = prob.solve(verbose=True, solver='pc', x0=img4x, max_iters=1000) 
