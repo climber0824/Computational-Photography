@@ -36,11 +36,17 @@ class upsampler(nn.Module):
     def __init__(self, scale=2, nFeat, act=nn.ReLU(True)):
         super(upsampler, self).__init__()
         #===== write your model definition here =====#
- 
+        
+        super(upsampler, self).__init__()
+        # add the definition of layer here
+        modules = []
+        modules.append(nn.Conv2d(nFeat, nFeat * scale, 3, padding=1))
+        modules.append(nn.PixelShuffle(2))
+        self.body = nn.Sequential(*modules)
         
     def forward(self, x):
         #===== write your dataflow here =====#
-
+        out = self.body(x)
         return out
 
 class ZebraSRNet(nn.Module):
