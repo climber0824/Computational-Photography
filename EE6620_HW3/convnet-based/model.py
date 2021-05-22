@@ -53,10 +53,26 @@ class ZebraSRNet(nn.Module):
     def __init__(self, nFeat=64, kernel_size=3, nResBlock=8, imgChannel=3):
         super(ZebraSRNet, self).__init__()
         #===== write your model definition here using 'resblock' and 'upsampler' as the building blocks =====#
+    
+        self.module1 = nn.Conv2d(imgChannel, nFeat, kernel_size, padding=1)
 
+        ResBlock = []
+        for _ in range(nResBlock):
+            ResBlock.append(ResBlock2(nFeat, kernel_size))
+        self.module2 = nn.Sequential(*ResBlock)
+
+        module3 = []
+        module3.append(upsampler(SRscale, nFeat))
+        module3.append(upsampler(SRscale, nFeat))
+        module3.append(nn.Conv2d(nFeat, imgChannel, kernel_size, padding=1))
+        self.module3 = nn.Sequential(*module3)
 
     def forward(self, x):
         #===== write your dataflow here =====#
-
+        
+        x = self.module1(x)
+        out = self.module2(x)
+        out += x
+        out = self.module3(out)
 
         return out
