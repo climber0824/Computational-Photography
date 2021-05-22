@@ -36,14 +36,12 @@ class upsampler(nn.Module):
     def __init__(self, scale=2, nFeat, act=nn.ReLU(True)):
         super(upsampler, self).__init__()
         #===== write your model definition here =====#
-        
-        super(upsampler, self).__init__()
-        # add the definition of layer here
+ 
         modules = []
         modules.append(nn.Conv2d(nFeat, nFeat * scale, 3, padding=1))
         modules.append(nn.PixelShuffle(2))
         self.body = nn.Sequential(*modules)
-        
+
     def forward(self, x):
         #===== write your dataflow here =====#
         out = self.body(x)
@@ -53,26 +51,24 @@ class ZebraSRNet(nn.Module):
     def __init__(self, nFeat=64, kernel_size=3, nResBlock=8, imgChannel=3):
         super(ZebraSRNet, self).__init__()
         #===== write your model definition here using 'resblock' and 'upsampler' as the building blocks =====#
-    
-        self.module1 = nn.Conv2d(imgChannel, nFeat, kernel_size, padding=1)
+        self.module_1 = nn.Conv2d(imgChannel, nFeat, kernel_size, padding=1)
 
         ResBlock = []
         for _ in range(nResBlock):
-            ResBlock.append(ResBlock2(nFeat, kernel_size))
-        self.module2 = nn.Sequential(*ResBlock)
+            ResBlock.append(resblock(nFeat, kernel_size))
+        self.module_2 = nn.Sequential(*ResBlock)
 
-        module3 = []
-        module3.append(upsampler(SRscale, nFeat))
-        module3.append(upsampler(SRscale, nFeat))
-        module3.append(nn.Conv2d(nFeat, imgChannel, kernel_size, padding=1))
-        self.module3 = nn.Sequential(*module3)
+        module_3 = []
+        module_3.append(upsampler(2, nFeat))
+        module_3.append(upsampler(2, nFeat))
+        module_3.append(nn.Conv2d(nFeat, imgChannel, kernel_size, padding=1))
+        self.module_3 = nn.Sequential(*module_3)
 
     def forward(self, x):
         #===== write your dataflow here =====#
-        
-        x = self.module1(x)
-        out = self.module2(x)
+        x = self.module_1(x)
+        out = self.module_2(x)
         out += x
-        out = self.module3(out)
-
+        out = self.module_3(out)
+        
         return out
