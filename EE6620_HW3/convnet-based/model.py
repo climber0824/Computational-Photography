@@ -33,7 +33,7 @@ class resblock(nn.Module):
         return out
 
 class upsampler(nn.Module):
-    def __init__(self, scale=2, nFeat, act=nn.ReLU(True)):
+    def __init__(self, nFeat, scale=2, act=nn.ReLU(True)):
         super(upsampler, self).__init__()
         #===== write your model definition here =====#
  
@@ -59,8 +59,10 @@ class ZebraSRNet(nn.Module):
         self.module_2 = nn.Sequential(*ResBlock)
 
         module_3 = []
-        module_3.append(upsampler(2, nFeat))
-        module_3.append(upsampler(2, nFeat))
+        #module_3.append(upsampler(2, nFeat))
+        #module_3.append(upsampler(2, nFeat))
+        module_3.append(upsampler(nFeat, 2))
+        module_3.append(upsampler(nFeat, 2))
         module_3.append(nn.Conv2d(nFeat, imgChannel, kernel_size, padding=1))
         self.module_3 = nn.Sequential(*module_3)
 
