@@ -62,8 +62,8 @@ class ZebraSRNet(nn.Module):
         #module_3.append(upsampler(2, nFeat))
         #module_3.append(upsampler(2, nFeat))
         module_3.append(upsampler(nFeat, 2))
-        module_3.append(upsampler(nFeat, 2))
-        module_3.append(nn.Conv2d(nFeat, imgChannel, kernel_size, padding=1))
+        module_3.append(upsampler(nFeat//2, 2))
+        module_3.append(nn.Conv2d(nFeat//4, imgChannel, kernel_size, padding=1))
         self.module_3 = nn.Sequential(*module_3)
 
     def forward(self, x):
